@@ -58,7 +58,7 @@ export default function FormsLR() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-br from-purpura to-vino p-4">
+    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-br from-purpura via-vino to-purpura p-4">
       <img
         src={Logo}
         alt="Logo"
