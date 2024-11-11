@@ -19,6 +19,11 @@ AutoPilot es una aplicación web diseñada para ayudar a los usuarios a gestiona
 
 ## Interfaz de Usuario
 
+### Login y Registro
+
+La primera pantalla que ve el usuario al ingresar a la aplicacion es donde puede Registrarse o Iniciar Sesión
+![Login](./images/login.png)
+
 ## Instalación y Ejecución
 
 ## Autor
