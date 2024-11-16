@@ -65,7 +65,7 @@ export default function FormsLR() {
         className="absolute opacity-50 top-auto h-2/3 ml-96 transform transition-all duration-300 scale-100 hover:scale-[1.05]"
       />
 
-      <div className="w-full md:w-1/2 max-w-md mr-96 backdrop-blur-lg bg-white/10 rounded-3xl shadow-xl overflow-hidden">
+      <div className="w-full md:w-1/2 max-w-md mr-96 backdrop-blur-lg bg-white/10 rounded-3xl shadow-xl overflow-hidden transform transition-all duration-300 scale-100 hover:scale-[1.05]">
         <div className="text-center p-6">
           <h2 className="text-3xl font-bold text-white mb-2 mt-2">AutoPilot</h2>
           <p className="text-white/70">Manage your subscriptions with ease</p>
@@ -127,7 +127,7 @@ export default function FormsLR() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full p-3 rounded-full bg-rosa hover:bg-vino text-white transition-colors duration-300 font-semibold text-lg disabled:opacity-50"
+                className="w-full p-3 rounded-full bg-rosa hover:bg-vino text-white transition-colors duration-300 font-semibold text-lg disabled:opacity-50 shadow-black shadow-sm"
               >
                 {loading ? "Logging in..." : "Log In"}
               </button>
@@ -167,7 +167,7 @@ export default function FormsLR() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full p-3 rounded-full bg-rosa hover:bg-vino text-white transition-colors duration-300 font-semibold text-lg disabled:opacity-50"
+                className="w-full p-3 rounded-full bg-rosa hover:bg-vino text-white transition-colors duration-300 font-semibold text-lg disabled:opacity-50 shadow-black shadow-sm"
               >
                 {loading ? "Registering..." : "Register"}
               </button>
