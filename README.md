@@ -28,4 +28,4 @@ La primera pantalla que ve el usuario al ingresar a la aplicacion es donde puede
 
 ## Autor
 
-Desarrollado por **Brenda Zamarripa Ramirez** : [Mi insta :)](https://www.instagram.com/brenda_zr21/)
+Desarrollado por **Brenda Zamarripa Ramirez**

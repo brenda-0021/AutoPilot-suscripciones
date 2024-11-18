@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Logo from "../assets/AutoPilot.png";
-import { getAuth } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -13,22 +12,72 @@ import {
   Plus,
   Settings,
 } from "lucide-react";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { db } from "../firebase/firebase.config";
+import SubsModal from "./SubsModal";
 
 export default function Dashboard() {
   const [username, setUsername] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [subscriptions, setSubscriptions] = useState([]);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const auth = getAuth();
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      console.log("User is signed in:", user);
+      try {
+        const docRef = doc(db, "collection", "documentId");
+        const docSnap = await getDoc(docRef);
+        console.log("Document data:", docSnap.data());
+      } catch (error) {
+        console.error("Error fetching document:", error.message);
+      }
+    } else {
+      console.log("No user signed in");
+    }
+  });
 
   useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log("User is signed in:", user);
 
-    if (user) {
-      const email = user.email;
-      const firstName = email.split("@")[0];
-      setUsername(firstName.charAt(0).toUpperCase() + firstName.slice(1));
-    }
-  }, []);
+        const email = user.email;
+        const firstName = email.split("@")[0];
+        setUsername(firstName.charAt(0).toUpperCase() + firstName.slice(1));
+
+        const q = query(
+          collection(db, "subscriptions"),
+          where("userId", "==", user.uid)
+        );
+        const unsubscribeSubscriptions = onSnapshot(q, (querySnapshot) => {
+          const subscriptionsData = [];
+          querySnapshot.forEach((doc) => {
+            subscriptionsData.push({ id: doc.id, ...doc.data() });
+          });
+          setSubscriptions(subscriptionsData);
+        });
+
+        return () => unsubscribeSubscriptions();
+      } else {
+        console.log("No user signed in");
+        navigate("/");
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [auth, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -36,6 +85,22 @@ export default function Dashboard() {
       navigate("/");
     } catch (error) {
       console.error("Failed to log out", error);
+    }
+  };
+
+  const handleAddSubscription = async (formData) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("No authenticated user");
+
+      await addDoc(collection(db, "subscriptions"), {
+        ...formData,
+        userId: user.uid,
+        expenses: 0,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Error adding subscription: ", error);
     }
   };
 
@@ -111,24 +176,12 @@ export default function Dashboard() {
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-4xl font-bold">Welcome back, {username}!</h2>
-            <button className="px-4 py-2 bg-rosa text-white rounded-md hover:bg-vino transition-all duration-200 transform hover:scale-105">
-              <Plus className="inline-block mr-2 h-4 w-4" /> Add Subscription
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 bg-rosa text-white rounded-md hover:bg-vino transition-all duration-200 transform hover:scale-105 flex items-center"
+            >
+              <Plus className="mr-2 h-5 w-5" /> Add Subscription
             </button>
-          </div>
-
-          {/* Summary Cards */}
-          <div className="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
-            <div className="p-4 bg-purpura/30 backdrop-blur-md rounded-lg shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-white">
-                  Total Monthly Cost
-                </span>
-                <DollarSign className="h-4 w-4 text-rosa" />
-              </div>
-              <div className="text-2xl font-bold text-rosa">$299.99</div>
-              <p className="text-xs text-white">+2.1% from last month</p>
-            </div>
-            {/* Add more summary cards here */}
           </div>
 
           {/* Subscriptions List */}
@@ -152,17 +205,22 @@ export default function Dashboard() {
                     <th className="p-2">Name</th>
                     <th className="p-2">Category</th>
                     <th className="p-2">Cost</th>
-                    <th className="p-2">Renewal Date</th>
+                    <th className="p-2">Cycle</th>
+                    <th className="p-2">Next Payment</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-t border-grisFuerte/30">
-                    <td className="p-2 text-white">Netflix</td>
-                    <td className="p-2 text-white">Entertainment</td>
-                    <td className="p-2 text-white">$14.99</td>
-                    <td className="p-2 text-white">May 15, 2023</td>
-                  </tr>
-                  {/* Add more subscription rows here */}
+                  {subscriptions.map((sub) => (
+                    <tr key={sub.id} className="border-t border-grisFuerte/30">
+                      <td className="p-2 text-white">{sub.platformName}</td>
+                      <td className="p-2 text-white">{sub.category}</td>
+                      <td className="p-2 text-white">${sub.price}</td>
+                      <td className="p-2 text-white">{sub.cycle}</td>
+                      <td className="p-2 text-white">
+                        {new Date(sub.paymentDate).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -229,6 +287,13 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Add Subscription Modal */}
+      <SubsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleAddSubscription}
+      />
     </div>
   );
 }
