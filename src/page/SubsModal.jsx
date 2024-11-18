@@ -19,8 +19,8 @@ export function Modal({ isOpen, onClose, children }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-purpura/90 backdrop-blur-md p-6 rounded-lg shadow-lg max-w-md w-full">
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 ">
+      <div className="bg-purpura/90 backdrop-blur-md p-10 rounded-lg shadow-lg max-w-lg w-full">
         <button onClick={onClose} className="float-right text-white">
           <X className="h-6 w-6" />
         </button>
@@ -58,8 +58,8 @@ export function SubscriptionForm({ onSubmit, onClose }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-2xl font-bold text-rosa mb-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <h2 className="text-2xl font-bold text-white mb-4 text-center">
         Add New Subscription
       </h2>
       <input
@@ -67,7 +67,7 @@ export function SubscriptionForm({ onSubmit, onClose }) {
         value={formData.platformName}
         onChange={handleChange}
         placeholder="Platform Name"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro/70"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
         required
       />
       <select
@@ -108,7 +108,7 @@ export function SubscriptionForm({ onSubmit, onClose }) {
         value={formData.price}
         onChange={handleChange}
         placeholder="Price"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro/70"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
         required
       />
       <input
@@ -117,12 +117,12 @@ export function SubscriptionForm({ onSubmit, onClose }) {
         value={formData.reminder}
         onChange={handleChange}
         placeholder="Reminder (days before)"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro/70"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
         required
       />
       <button
         type="submit"
-        className="w-full px-4 py-2 bg-rosa text-white rounded-md hover:bg-vino transition-all duration-200"
+        className="w-full px-4 py-2 bg-rosa text-white rounded-full hover:bg-vino transition-all duration-200"
       >
         Add Subscription
       </button>
