@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Logo from "../assets/AutoPilot.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -33,6 +33,9 @@ export default function Dashboard() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeSection, setActiveSection] = useState("subscriptions");
+  const [monthlyTotal, setMonthlyTotal] = useState(0);
+  const [annualTotal, setAnnualTotal] = useState(0);
+  const [categoryTotals, setCategoryTotals] = useState({});
   const { logout } = useAuth();
   const navigate = useNavigate();
   const auth = getAuth();
@@ -42,6 +45,7 @@ export default function Dashboard() {
   const alertsRef = useRef(null);
   const settingsRef = useRef(null);
   const mainContentRef = useRef(null);
+
   const categories = [
     "All",
     "Entertainment",
@@ -144,6 +148,112 @@ export default function Dashboard() {
     (sub) => selectedCategory === "All" || sub.category === selectedCategory
   );
 
+  const calculateExpenses = useMemo(() => {
+    let monthly = 0;
+    let annual = 0;
+    let catTotals = {};
+
+    subscriptions.forEach((sub) => {
+      let monthlyAmount = 0;
+      switch (sub.cycle.toLowerCase()) {
+        case "monthly":
+          monthlyAmount = parseFloat(sub.price);
+          break;
+        case "annually":
+          monthlyAmount = parseFloat(sub.price) / 12;
+          break;
+        case "weekly":
+          monthlyAmount = parseFloat(sub.price) * 4;
+          break;
+        // Add more cases for other cycles if needed
+      }
+
+      monthly += monthlyAmount;
+      annual += monthlyAmount * 12;
+
+      if (catTotals[sub.category]) {
+        catTotals[sub.category] += monthlyAmount;
+      } else {
+        catTotals[sub.category] = monthlyAmount;
+      }
+    });
+
+    setMonthlyTotal(monthly);
+    setAnnualTotal(annual);
+    setCategoryTotals(catTotals);
+  }, [subscriptions]);
+
+  useEffect(() => {
+    calculateExpenses;
+  }, [calculateExpenses]);
+
+  const renderPieChart = () => {
+    const total = Object.values(categoryTotals).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    let startAngle = 0;
+
+    return (
+      <div className="flex flex-col items-center">
+        {/* Gráfico circular */}
+        <svg
+          viewBox="0 0 100 100"
+          className="w-64 h-64 transform transition-all duration-300 scale-100 hover:scale-[1.1]"
+        >
+          {Object.entries(categoryTotals).map(([category, amount]) => {
+            const percentage = (amount / total) * 100;
+            const endAngle = startAngle + (percentage / 100) * 360;
+
+            const x1 = 50 + 50 * Math.cos((Math.PI * startAngle) / 180);
+            const y1 = 50 + 50 * Math.sin((Math.PI * startAngle) / 180);
+            const x2 = 50 + 50 * Math.cos((Math.PI * endAngle) / 180);
+            const y2 = 50 + 50 * Math.sin((Math.PI * endAngle) / 180);
+
+            const path = `M 50 50 L ${x1} ${y1} A 50 50 0 ${
+              percentage > 50 ? 1 : 0
+            } 1 ${x2} ${y2} Z`;
+
+            startAngle = endAngle;
+
+            return (
+              <path key={category} d={path} fill={getCategoryColor(category)} />
+            );
+          })}
+        </svg>
+
+        {/* Leyenda */}
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          {Object.keys(categoryTotals).map((category) => (
+            <div key={category} className="flex items-center">
+              <span
+                className="w-4 h-4 rounded-full mr-2"
+                style={{ backgroundColor: getCategoryColor(category) }}
+              ></span>
+              <span className="text-sm font-medium">{category}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      Entertainment: "#722548", // rosa
+      Sports: "#775E88", // lila
+      Shopping: "#221932", // purpura
+      Utilities: "#282F32", // grisFuerte
+      Education: "#4D474F", // grisClaro
+      "Health & Fitness": "#6E2A3C", // tono más claro de rosa
+      "Food & Drink": "#87455C", // variante de vino
+      Travel: "#5A3A58", // mezcla de purpura y gris
+      Technology: "#3F2B4B", // tono oscuro lila/purpura
+      Other: "#282F32", // grisFuerte para casos generales
+    };
+    return colors[category] || "#808080";
+  };
+
   const scrollToSection = (elementRef, section) => {
     if (elementRef.current && mainContentRef.current) {
       const yOffset = -20;
@@ -166,7 +276,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-gradient-to-br from-purpura via-vino to-purpura text-white">
       {/* Sidebar */}
-      <aside className="w-64 bg-purpura/30 backdrop-blur-md border-r border-rosa/20 flex flex-col">
+      <aside className="w-64 bg-purpura/50 backdrop-blur-md border-r border-rosa/50 flex flex-col shadow-lg shadow-black/30">
         <div className="p-5">
           <div className="flex items-center space-x-4">
             <img
@@ -178,7 +288,7 @@ export default function Dashboard() {
               AutoPilot
             </h1>
           </div>
-          <p className="text-md text-white/50 font-bold text-center">
+          <p className="text-md text-rosa font-bold text-center">
             Subscription Manager
           </p>
         </div>
@@ -233,12 +343,12 @@ export default function Dashboard() {
       <main ref={mainContentRef} className="flex-1 overflow-y-auto">
         <div className="p-8">
           <div className="flex justify-between items-center mb-8 pt-10 pb-10">
-            <h2 className="text-4xl font-bold transform transition-all duration-300 scale-100 hover:scale-[1.05]">
+            <h2 className="text-4xl font-bold transform transition-all duration-300 scale-100 hover:scale-[1.05] ml-16">
               Welcome back, {username}!
             </h2>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-4 bg-rosa text-white text-lg rounded-full hover:bg-vino transition-all duration-200 transform hover:scale-105 flex items-center"
+              className="px-4 py-4 bg-rosa text-white text-lg rounded-full hover:bg-vino transition-all duration-200 transform hover:scale-105 flex items-center shadow-lg shadow-black/30"
             >
               <Plus className="mr-2 h-5 w-5" /> Add Subscription
             </button>
@@ -247,7 +357,7 @@ export default function Dashboard() {
           {/* Subscriptions List */}
           <div
             ref={subscriptionsRef}
-            className="bg-purpura/30 backdrop-blur-md p-6 rounded-lg shadow-lg mb-8"
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
             <h3 className="text-xl font-bold text-white/50 mb-4">
               Your Subscriptions
@@ -257,7 +367,7 @@ export default function Dashboard() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => handleFilterChange(e.target.value)}
-                  className="px-4 py-2 pr-10 bg-rosa text-white rounded-full hover:bg-vino transition-all duration-200 transform hover:scale-105 appearance-none focus:outline-none focus:ring-2 focus:ring-vino w-full"
+                  className="px-4 py-2 pr-10 bg-rosa text-white rounded-full shadow-lg shadow-black/30 hover:bg-vino transition-all duration-200 transform hover:scale-105 appearance-none focus:outline-none focus:ring-2 focus:ring-vino w-full"
                 >
                   <option value="" disabled>
                     Filter
@@ -309,23 +419,64 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Charts placeholder */}
+          {/* Spending Overview */}
           <div
             ref={spendingOverviewRef}
-            className="bg-purpura/30 backdrop-blur-md p-6 rounded-lg shadow-lg mb-8"
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
-            <h3 className="text-xl font-bold text-rosa mb-4">
+            <h3 className="text-xl font-bold text-white/50 mb-4">
               Spending Overview
             </h3>
-            <div className="h-64 bg-grisFuerte/50 rounded-md flex items-center justify-center text-white">
-              [Chart placeholder]
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50">
+                  <h4 className="text-lg font-semibold mb-2 border-b-2 border-rosa">
+                    Monthly Expenses
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    ${monthlyTotal.toFixed(2)}
+                  </p>
+                  <h4 className="text-lg font-semibold mt-5 mb-2 border-b-2 border-rosa">
+                    Annual Projection
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    ${annualTotal.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50 mt-4">
+                  <h4 className="text-lg font-semibold mb-2">
+                    Category Breakdown
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {Object.entries(categoryTotals).map(
+                      ([category, amount]) => (
+                        <div
+                          key={category}
+                          className="rounded-2xl p-4 border-2 border-rosa"
+                        >
+                          <h5 className="font-medium">{category}</h5>
+                          <p className="text-lg font-semibold">
+                            ${amount.toFixed(2)}/mo
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50">
+                <h4 className="text-lg font-semibold mb-2">
+                  Expense Distribution
+                </h4>
+                <div className="h-48">{renderPieChart()}</div>
+              </div>
             </div>
           </div>
 
           {/* Savings Goals */}
           <div
             ref={savingsGoalsRef}
-            className="bg-purpura/30 backdrop-blur-md p-6 rounded-lg shadow-lg mb-8 "
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8 "
           >
             <h3 className="text-xl font-bold text-rosa mb-4">Savings Goals</h3>
             <div className="space-y-4">
@@ -350,7 +501,7 @@ export default function Dashboard() {
           {/* Alerts and Reminders */}
           <div
             ref={alertsRef}
-            className="bg-purpura/30 backdrop-blur-md p-6 rounded-lg shadow-lg mb-8"
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
             <h3 className="text-xl font-bold text-rosa mb-4">
               Alerts and Reminders
@@ -379,7 +530,7 @@ export default function Dashboard() {
           </div>
           <div
             ref={settingsRef}
-            className="bg-purpura/30 backdrop-blur-md p-6 rounded-lg shadow-lg mb-8"
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
             <h3 className="text-xl font-bold text-rosa mb-4">Settings</h3>
             {/* Add your settings content here */}

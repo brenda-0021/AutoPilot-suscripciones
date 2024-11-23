@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import PropTypes from "prop-types";
 
 const categories = [
@@ -15,14 +15,23 @@ const categories = [
   "Other",
 ];
 
-export function Modal({ isOpen, onClose, children }) {
+const cycles = [
+  { value: "monthly", label: "Monthly" },
+  { value: "annually", label: "Annually" },
+];
+
+function Modal({ isOpen, onClose, children }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 ">
-      <div className="bg-purpura/90 backdrop-blur-md p-10 rounded-lg shadow-lg max-w-lg w-full">
-        <button onClick={onClose} className="float-right text-white">
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="bg-rosa/70 backdrop-blur-md p-10 rounded-2xl shadow-lg max-w-lg w-full">
+        <button
+          onClick={onClose}
+          className="float-right text-white hover:text-rosa transition-colors"
+        >
           <X className="h-6 w-6" />
+          <span className="sr-only">Close</span>
         </button>
         {children}
       </div>
@@ -36,7 +45,7 @@ Modal.propTypes = {
   children: PropTypes.node,
 };
 
-export function SubscriptionForm({ onSubmit, onClose }) {
+function SubscriptionForm({ onSubmit, onClose }) {
   const [formData, setFormData] = useState({
     platformName: "",
     category: "",
@@ -67,48 +76,67 @@ export function SubscriptionForm({ onSubmit, onClose }) {
         value={formData.platformName}
         onChange={handleChange}
         placeholder="Platform Name"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
         required
       />
-      <select
-        name="category"
-        value={formData.category}
-        onChange={handleChange}
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white"
-        required
-      >
-        <option value="">Select Category</option>
-        {categories.map((category) => (
-          <option key={category} value={category}>
-            {category}
+      <div className="relative w-full">
+        <select
+          name="category"
+          value={formData.category}
+          onChange={handleChange}
+          className="w-full p-2 pr-10 rounded bg-grisFuerte/50 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-rosa"
+          required
+        >
+          <option value="" disabled className="text-rosa bg-purpura">
+            Select Category
           </option>
-        ))}
-      </select>
+          {categories.map((category) => (
+            <option
+              key={category}
+              value={category}
+              className="bg-purpura text-white hover:bg-rosa"
+            >
+              {category}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white pointer-events-none" />
+      </div>
       <input
         type="date"
         name="paymentDate"
         value={formData.paymentDate}
         onChange={handleChange}
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white focus:outline-none focus:ring-2 focus:ring-rosa"
         required
       />
-      <select
-        name="cycle"
-        value={formData.cycle}
-        onChange={handleChange}
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white"
-        required
-      >
-        <option value="monthly">Monthly</option>
-        <option value="annually">Annually</option>
-      </select>
+      <div className="relative">
+        <select
+          name="cycle"
+          value={formData.cycle}
+          onChange={handleChange}
+          className="w-full p-2 pr-10 rounded bg-grisFuerte/50 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-rosa"
+          required
+        >
+          {cycles.map((cycle) => (
+            <option
+              key={cycle.value}
+              value={cycle.value}
+              className="bg-purpura text-white hover:bg-rosa"
+            >
+              {cycle.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white pointer-events-none" />
+      </div>
       <input
         type="number"
         name="price"
         value={formData.price}
         onChange={handleChange}
         placeholder="Price"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
         required
       />
       <input
@@ -117,12 +145,12 @@ export function SubscriptionForm({ onSubmit, onClose }) {
         value={formData.reminder}
         onChange={handleChange}
         placeholder="Reminder (days before)"
-        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro"
+        className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
         required
       />
       <button
         type="submit"
-        className="w-full px-4 py-2 bg-rosa text-white rounded-full hover:bg-vino transition-all duration-200"
+        className="w-full px-4 py-2 bg-rosa text-white rounded-full hover:bg-vino transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rosa"
       >
         Add Subscription
       </button>
