@@ -12,6 +12,17 @@ import {
   Plus,
   Settings,
   Trash2,
+  Film,
+  ShoppingBag,
+  Zap,
+  BookOpen,
+  Heart,
+  Utensils,
+  Plane,
+  Smartphone,
+  HelpCircle,
+  Pencil,
+  X,
 } from "lucide-react";
 import {
   collection,
@@ -22,20 +33,25 @@ import {
   doc,
   getDoc,
   deleteDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { db } from "../firebase/firebase.config";
 import SubsModal from "./SubsModal";
+import { checkForAlerts } from "../utils/alertUtils";
 
 export default function Dashboard() {
   const [username, setUsername] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeSection, setActiveSection] = useState("subscriptions");
   const [monthlyTotal, setMonthlyTotal] = useState(0);
   const [annualTotal, setAnnualTotal] = useState(0);
   const [categoryTotals, setCategoryTotals] = useState({});
+  const [alerts, setAlerts] = useState([]);
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const auth = getAuth();
@@ -106,6 +122,16 @@ export default function Dashboard() {
     return () => unsubscribeAuth();
   }, [auth, navigate]);
 
+  useEffect(() => {
+    if (!subscriptions || subscriptions.length === 0) {
+      setAlerts([]);
+      return;
+    }
+    const newAlerts = checkForAlerts(subscriptions);
+    setAlerts(newAlerts);
+    setUnreadAlerts(newAlerts.length);
+  }, [subscriptions]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -120,15 +146,42 @@ export default function Dashboard() {
       const user = auth.currentUser;
       if (!user) throw new Error("No authenticated user");
 
+      const paymentDate = new Date(formData.paymentDate);
+
+      if (isNaN(paymentDate.getTime())) {
+        throw new Error("Invalid paymentDate provided");
+      }
+
       await addDoc(collection(db, "subscriptions"), {
         ...formData,
+        paymentDate,
         userId: user.uid,
         expenses: 0,
         createdAt: new Date(),
       });
+      setIsModalOpen(false);
     } catch (error) {
       console.error("Error adding subscription: ", error);
     }
+  };
+
+  const handleEditSubscription = async (formData) => {
+    try {
+      if (!editingSubscription)
+        throw new Error("No subscription selected for editing");
+
+      const subscriptionRef = doc(db, "subscriptions", editingSubscription.id);
+      await updateDoc(subscriptionRef, formData);
+      setIsModalOpen(false);
+      setEditingSubscription(null);
+    } catch (error) {
+      console.error("Error updating subscription: ", error);
+    }
+  };
+
+  const openEditModal = (subscription) => {
+    setEditingSubscription(subscription);
+    setIsModalOpen(true);
   };
 
   const handleDeleteSubscription = async (subscriptionId) => {
@@ -254,6 +307,28 @@ export default function Dashboard() {
     return colors[category] || "#808080";
   };
 
+  const getCategoryIcon = (category) => {
+    const icons = {
+      Entertainment: Film,
+      Sports: Calendar,
+      Shopping: ShoppingBag,
+      Utilities: Zap,
+      Education: BookOpen,
+      "Health & Fitness": Heart,
+      "Food & Drink": Utensils,
+      Travel: Plane,
+      Technology: Smartphone,
+      Other: HelpCircle,
+    };
+    const IconComponent = icons[category] || HelpCircle;
+    return (
+      <IconComponent
+        className="w-5 h-5"
+        style={{ color: getCategoryColor(category) }}
+      />
+    );
+  };
+
   const scrollToSection = (elementRef, section) => {
     if (elementRef.current && mainContentRef.current) {
       const yOffset = -20;
@@ -272,6 +347,11 @@ export default function Dashboard() {
         ? "bg-vino text-rosa border-l-4 border-rosa ml-2"
         : "hover:bg-vino/20 hover:text-rosa"
     }`;
+
+  const markAlertAsRead = (alertId) => {
+    setAlerts(alerts.filter((alert) => alert.id !== alertId));
+    setUnreadAlerts((prevUnread) => Math.max(0, prevUnread - 1));
+  };
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-purpura via-vino to-purpura text-white">
@@ -319,9 +399,17 @@ export default function Dashboard() {
             onClick={() => scrollToSection(alertsRef, "alerts")}
             className={navButtonClass("alerts")}
           >
-            <Bell className="mr-3 h-5 w-5" />
-            Alerts
+            <div className="relative flex items-center">
+              <Bell className="mr-3 h-5 w-5" />
+              Alerts
+              {unreadAlerts > 0 && (
+                <span className="absolute -right-28 bg-rosa text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center transform translate-x-full">
+                  {unreadAlerts}
+                </span>
+              )}
+            </div>
           </button>
+
           <button
             onClick={() => scrollToSection(settingsRef, "settings")}
             className={navButtonClass("settings")}
@@ -391,22 +479,37 @@ export default function Dashboard() {
                     <th className="p-2">Cost</th>
                     <th className="p-2">Cycle</th>
                     <th className="p-2">Next Payment</th>
+                    <th className="p-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSubscriptions.map((sub) => (
                     <tr key={sub.id} className="border-t border-rosa">
                       <td className="p-2 text-white">{sub.platformName}</td>
-                      <td className="p-2 text-white">{sub.category}</td>
+                      <td className="p-2 text-white">
+                        <div className="flex items-center">
+                          <div className="bg-white/50 p-1.5 rounded-full">
+                            {getCategoryIcon(sub.category)}
+                          </div>
+                          <span className="ml-2">{sub.category}</span>
+                        </div>
+                      </td>
                       <td className="p-2 text-white">${sub.price}</td>
                       <td className="p-2 text-white">{sub.cycle}</td>
                       <td className="p-2 text-white">
                         {new Date(sub.paymentDate).toLocaleDateString()}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 flex space-x-8">
+                        <button
+                          onClick={() => openEditModal(sub)}
+                          className="text-blue-900 hover:text-white transition-colors duration-200"
+                          aria-label="Edit subscription"
+                        >
+                          <Pencil className="h-5 w-5" />
+                        </button>
                         <button
                           onClick={() => handleDeleteSubscription(sub.id)}
-                          className="text-rosa hover:text-white transition-colors duration-200"
+                          className="text-red-900 hover:text-white transition-colors duration-200"
                           aria-label="Delete subscription"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -429,7 +532,7 @@ export default function Dashboard() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50">
+                <div className="bg-vino rounded-2xl p-4 ">
                   <h4 className="text-lg font-semibold mb-2 border-b-2 border-rosa">
                     Monthly Expenses
                   </h4>
@@ -443,7 +546,7 @@ export default function Dashboard() {
                     ${annualTotal.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50 mt-4">
+                <div className="bg-vino rounded-2xl p-4  mt-4">
                   <h4 className="text-lg font-semibold mb-2">
                     Category Breakdown
                   </h4>
@@ -452,7 +555,13 @@ export default function Dashboard() {
                       ([category, amount]) => (
                         <div
                           key={category}
-                          className="rounded-2xl p-4 border-2 border-rosa"
+                          className="rounded-2xl p-4 hover:bg-rosa/50"
+                          style={{
+                            borderColor: getCategoryColor(category),
+                            borderWidth: "2px",
+                            borderLeftWidth: "8px",
+                            borderStyle: "solid",
+                          }}
                         >
                           <h5 className="font-medium">{category}</h5>
                           <p className="text-lg font-semibold">
@@ -464,7 +573,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="bg-vino rounded-2xl p-4 hover:bg-rosa/50">
+              <div className="bg-vino rounded-2xl p-4 ">
                 <h4 className="text-lg font-semibold mb-2">
                   Expense Distribution
                 </h4>
@@ -507,27 +616,31 @@ export default function Dashboard() {
               Alerts and Reminders
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center">
-                <Bell className="h-5 w-5 mr-2 text-rosa" />
-                <span className="text-white">Netflix renewal in 3 days</span>
-              </div>
-              <div className="flex items-center">
-                <Bell className="h-5 w-5 mr-2 text-rosa" />
-                <span className="text-white">
-                  Gym membership payment due tomorrow
-                </span>
-              </div>
-              <hr className="border-grisFuerte/30" />
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-white">
-                  Notification Settings
-                </span>
-                <button className="px-4 py-2 bg-vino/50 text-rosa rounded-md hover:bg-vino transition-all duration-200 transform hover:scale-105">
-                  Configure
-                </button>
-              </div>
+              {alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between bg-vino/50 p-4 rounded-lg"
+                >
+                  <div className="flex items-center">
+                    <Bell className="h-5 w-5 mr-2 text-rosa" />
+                    <span className="text-white">{alert.message}</span>
+                  </div>
+                  <button
+                    onClick={() => markAlertAsRead(alert.id)}
+                    className="text-rosa hover:text-white transition-colors duration-200"
+                    aria-label="Dismiss alert"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              {alerts.length === 0 && (
+                <p className="text-white">No current alerts or reminders.</p>
+              )}
             </div>
           </div>
+
+          {/* Settings */}
           <div
             ref={settingsRef}
             className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
@@ -555,8 +668,14 @@ export default function Dashboard() {
       {/* Add Subscription Modal */}
       <SubsModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleAddSubscription}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingSubscription(null);
+        }}
+        onSubmit={
+          editingSubscription ? handleEditSubscription : handleAddSubscription
+        }
+        initialData={editingSubscription}
       />
     </div>
   );

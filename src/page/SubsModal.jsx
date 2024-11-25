@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import PropTypes from "prop-types";
 
@@ -45,7 +45,7 @@ Modal.propTypes = {
   children: PropTypes.node,
 };
 
-function SubscriptionForm({ onSubmit, onClose }) {
+function SubscriptionForm({ onSubmit, onClose, initialData }) {
   const [formData, setFormData] = useState({
     platformName: "",
     category: "",
@@ -54,6 +54,12 @@ function SubscriptionForm({ onSubmit, onClose }) {
     price: "",
     reminder: "",
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -69,7 +75,7 @@ function SubscriptionForm({ onSubmit, onClose }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <h2 className="text-2xl font-bold text-white mb-4 text-center">
-        Add New Subscription
+        {initialData ? "Edit Subscription" : "Add New Subscription"}
       </h2>
       <input
         name="platformName"
@@ -152,7 +158,7 @@ function SubscriptionForm({ onSubmit, onClose }) {
         type="submit"
         className="w-full px-4 py-2 bg-rosa text-white rounded-full hover:bg-vino transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rosa"
       >
-        Add Subscription
+        {initialData ? "Update Subscription" : "Add Subscription"}
       </button>
     </form>
   );
@@ -161,12 +167,17 @@ function SubscriptionForm({ onSubmit, onClose }) {
 SubscriptionForm.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+  initialData: PropTypes.object,
 };
 
-export default function SubsModal({ isOpen, onClose, onSubmit }) {
+export default function SubsModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <SubscriptionForm onSubmit={onSubmit} onClose={onClose} />
+      <SubscriptionForm
+        onSubmit={onSubmit}
+        onClose={onClose}
+        initialData={initialData}
+      />
     </Modal>
   );
 }
@@ -175,4 +186,5 @@ SubsModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
+  initialData: PropTypes.object,
 };
