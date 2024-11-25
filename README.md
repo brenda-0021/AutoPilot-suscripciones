@@ -24,6 +24,12 @@ AutoPilot es una aplicación web diseñada para ayudar a los usuarios a gestiona
 La primera pantalla que ve el usuario al ingresar a la aplicacion es donde puede Registrarse o Iniciar Sesión
 ![Login](./images/login.png)
 
+Al registrarse e inicar sesion en la aplicació, se le direccionará a la seccion Dashboard en donde se enlistarán todas las suscripciones actuales en el perfil del usuario
+![Your Subscriptions](./images/yourSubs.png)
+
+Un poco más abajo en el Dashboard encontrará los detalles y descripcion general del gasto (Spending Overview) basado en los datos de sus suscripciones.
+![Spending Overview](./images/SpendingOver.png)
+
 ## Instalación y Ejecución
 
 ## Autor
