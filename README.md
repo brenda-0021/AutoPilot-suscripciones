@@ -24,13 +24,48 @@ AutoPilot es una aplicación web diseñada para ayudar a los usuarios a gestiona
 La primera pantalla que ve el usuario al ingresar a la aplicacion es donde puede Registrarse o Iniciar Sesión
 ![Login](./images/login.png)
 
+### Mis Subscripciones
+
 Al registrarse e inicar sesion en la aplicació, se le direccionará a la seccion Dashboard en donde se enlistarán todas las suscripciones actuales en el perfil del usuario
 ![Your Subscriptions](./images/yourSubs.png)
+
+### Detalles de Gastos
 
 Un poco más abajo en el Dashboard encontrará los detalles y descripcion general del gasto (Spending Overview) basado en los datos de sus suscripciones.
 ![Spending Overview](./images/SpendingOver.png)
 
 ## Instalación y Ejecución
+
+1. Clonar el Repositorio
+
+```
+git clone https://github.com/brenda-0021/AutoPilot-suscripciones.git
+```
+
+2. Acceder al directorio del proyecto
+
+```
+cd AutoPilot-suscripciones
+```
+
+3. Instalar las dependencias
+
+```
+npm install
+```
+
+4. Para iniciar un servidor en desarrollo y trabajar en el proyecto ejecuta
+
+```
+npm run dev
+```
+
+El servidor de desarrollo estará disponible en http://localhost:5173 (o en el puerto que indique la terminal).
+
+## Producción
+
+La aplicación está desplegada y disponible en Netlify. Puedes acceder a ella en el siguiente enlace:
+🌐 [AutoPilot Suscripciones en Netlify](https://6744d845330f672191cb995c--autopilotsubs.netlify.app/)
 
 ## Autor
 
