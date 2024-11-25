@@ -38,13 +38,17 @@ import {
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { db } from "../firebase/firebase.config";
 import SubsModal from "./SubsModal";
+import GoalModal from "./GoalModal";
 import { checkForAlerts } from "../utils/alertUtils";
 
 export default function Dashboard() {
   const [username, setUsername] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubsModalOpen, setIsSubsModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [savingsGoals, setSavingsGoals] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeSection, setActiveSection] = useState("subscriptions");
   const [monthlyTotal, setMonthlyTotal] = useState(0);
@@ -75,6 +79,36 @@ export default function Dashboard() {
     "Technology",
     "Other",
   ];
+
+  const handleAddGoal = (goal) => {
+    if (editingGoal) {
+      setSavingsGoals((prevGoals) =>
+        prevGoals.map((g) => (g.id === editingGoal.id ? goal : g))
+      );
+      setEditingGoal(null);
+    } else {
+      setSavingsGoals([...savingsGoals, { ...goal, id: Date.now() }]);
+    }
+    setIsGoalModalOpen(false);
+  };
+
+  const handleEditGoal = (goal) => {
+    setEditingGoal(goal);
+    setIsGoalModalOpen(true);
+  };
+
+  const handleDeleteGoal = (id) => {
+    setSavingsGoals(savingsGoals.filter((goal) => goal.id !== id));
+  };
+
+  const openGoalModal = () => {
+    setIsGoalModalOpen(true);
+  };
+
+  const closeGoalModal = () => {
+    setIsGoalModalOpen(false);
+    setEditingGoal(null);
+  };
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -159,7 +193,7 @@ export default function Dashboard() {
         expenses: 0,
         createdAt: new Date(),
       });
-      setIsModalOpen(false);
+      setIsSubsModalOpen(false);
     } catch (error) {
       console.error("Error adding subscription: ", error);
     }
@@ -172,7 +206,7 @@ export default function Dashboard() {
 
       const subscriptionRef = doc(db, "subscriptions", editingSubscription.id);
       await updateDoc(subscriptionRef, formData);
-      setIsModalOpen(false);
+      setIsSubsModalOpen(false);
       setEditingSubscription(null);
     } catch (error) {
       console.error("Error updating subscription: ", error);
@@ -181,7 +215,7 @@ export default function Dashboard() {
 
   const openEditModal = (subscription) => {
     setEditingSubscription(subscription);
-    setIsModalOpen(true);
+    setIsSubsModalOpen(true);
   };
 
   const handleDeleteSubscription = async (subscriptionId) => {
@@ -435,7 +469,7 @@ export default function Dashboard() {
               Welcome back, {username}!
             </h2>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsSubsModalOpen(true)}
               className="px-4 py-4 bg-rosa text-white text-lg rounded-full hover:bg-vino transition-all duration-200 transform hover:scale-105 flex items-center shadow-lg shadow-black/30"
             >
               <Plus className="mr-2 h-5 w-5" /> Add Subscription
@@ -585,26 +619,64 @@ export default function Dashboard() {
           {/* Savings Goals */}
           <div
             ref={savingsGoalsRef}
-            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8 "
+            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
             <h3 className="text-xl font-bold text-rosa mb-4">Savings Goals</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-white">
-                    Reduce entertainment costs
-                  </span>
-                  <span className="text-sm font-medium text-white">75%</span>
-                </div>
-                <div className="w-full bg-grisFuerte/50 rounded-full h-2.5">
-                  <div
-                    className="bg-gradient-to-r from-rosa to-vino h-2.5 rounded-full"
-                    style={{ width: "75%" }}
-                  ></div>
-                </div>
+            <p className="text-sm text-grisClaro mb-4">
+              Define tus metas de ahorro y haz un seguimiento de tu progreso.
+            </p>
+            <button
+              className="bg-rosa text-white py-2 px-4 rounded-lg hover:bg-rosa/80 transition mb-4"
+              onClick={openGoalModal}
+            >
+              + Add Goal
+            </button>
+
+            {savingsGoals.length === 0 ? (
+              <p className="text-grisClaro text-sm">
+                No savings goals yet. Start now!
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {savingsGoals.map((goal) => (
+                  <div key={goal.id}>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium text-white">
+                        {goal.name}
+                      </span>
+                      <span className="text-sm font-medium text-white">
+                        {Math.round((goal.saved / goal.target) * 100)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-grisFuerte/50 rounded-full h-2.5">
+                      <div
+                        className="bg-gradient-to-r from-rosa to-vino h-2.5 rounded-full"
+                        style={{
+                          width: `${Math.min(
+                            (goal.saved / goal.target) * 100,
+                            100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        className="text-sm text-rosa hover:underline"
+                        onClick={() => handleEditGoal(goal)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-sm text-rosa hover:underline"
+                        onClick={() => handleDeleteGoal(goal.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              {/* Add more savings goals here */}
-            </div>
+            )}
           </div>
 
           {/* Alerts and Reminders */}
@@ -667,15 +739,22 @@ export default function Dashboard() {
 
       {/* Add Subscription Modal */}
       <SubsModal
-        isOpen={isModalOpen}
+        isOpen={isSubsModalOpen}
         onClose={() => {
-          setIsModalOpen(false);
+          setIsSubsModalOpen(false);
           setEditingSubscription(null);
         }}
         onSubmit={
           editingSubscription ? handleEditSubscription : handleAddSubscription
         }
         initialData={editingSubscription}
+      />
+      {/* Add Goal Modal */}
+      <GoalModal
+        isOpen={isGoalModalOpen}
+        onClose={closeGoalModal}
+        onSubmit={editingGoal ? handleEditGoal : handleAddGoal}
+        initialData={editingGoal}
       />
     </div>
   );
