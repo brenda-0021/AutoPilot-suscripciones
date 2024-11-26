@@ -100,7 +100,7 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
               type="number"
               className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
               placeholder="Target Amount"
-              value={goalTarget}
+              value={goalTarget === 0 ? "" : goalTarget} // Empty when 0
               onChange={(e) => setGoalTarget(Number(e.target.value))}
             />
           </div>
@@ -109,7 +109,7 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
               type="number"
               className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
               placeholder="Amount Saved"
-              value={goalSaved}
+              value={goalSaved === 0 ? "" : goalSaved} // Empty when 0
               onChange={(e) => setGoalSaved(Number(e.target.value))}
             />
           </div>
