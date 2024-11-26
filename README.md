@@ -34,6 +34,22 @@ Al registrarse e inicar sesion en la aplicació, se le direccionará a la seccio
 Un poco más abajo en el Dashboard encontrará los detalles y descripcion general del gasto (Spending Overview) basado en los datos de sus suscripciones.
 ![Spending Overview](./images/SpendingOver.png)
 
+### Metas de Ahorro y Alertas
+
+Al final del dashboard se encuentran las metas de ahorro donde el usuario puede ver cuanto dinero a ahorrado cancelando ciertas suscripciones y abajo se ecuentran las Alertas y recordatorios donde se elistan todos los días proximos para realizar los pagos de las suscripciones
+![Saving Goals & Alerts](./images/alerts-saving.png)
+
+### Modal para agregar Suscripcion
+
+Un modal de dos fases que sirve para añadir nuevas suscipciones al perfil del usuario
+![Fase 1](./images/fase1.png)
+![Fase 2](./images/fase2.png)
+
+### Modal para agregar Meta de Ahorro
+
+Un pequeño modal para añadir nuevas metas de ahorro y editarlas
+![Add Goal](./images/addgoal.png)
+
 ## Instalación y Ejecución
 
 1. Clonar el Repositorio
