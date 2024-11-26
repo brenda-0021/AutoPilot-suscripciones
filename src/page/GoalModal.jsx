@@ -1,37 +1,73 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import PropTypes from "prop-types";
+import { db } from "../firebase/firebase.config";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState(0);
   const [goalSaved, setGoalSaved] = useState(0);
+  const [goalDeadline, setGoalDeadline] = useState("");
 
   useEffect(() => {
     if (editingGoal) {
       setGoalName(editingGoal.name || "");
       setGoalTarget(editingGoal.target || 0);
       setGoalSaved(editingGoal.saved || 0);
+      setGoalDeadline(editingGoal.deadline || "");
+    } else {
+      setGoalName("");
+      setGoalTarget(0);
+      setGoalSaved(0);
+      setGoalDeadline("");
     }
   }, [editingGoal]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!goalName || goalTarget <= 0) {
       alert("Please enter valid goal details.");
       return;
     }
 
-    onSave({
-      id: editingGoal ? editingGoal.id : Date.now(),
-      name: goalName,
-      target: goalTarget,
-      saved: goalSaved,
-    });
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-    // Limpia los campos después de guardar
-    setGoalName("");
-    setGoalTarget(0);
-    setGoalSaved(0);
-    onClose();
+    if (!user) {
+      alert("You must be logged in to save a goal.");
+      return;
+    }
+
+    const goalData = {
+      id: editingGoal ? editingGoal.id : Date.now().toString(),
+      name: goalName,
+      target: parseFloat(goalTarget),
+      saved: parseFloat(goalSaved),
+      deadline: goalDeadline,
+      userId: user.uid,
+    };
+
+    try {
+      await setDoc(doc(db, "savingsGoals", goalData.id), goalData);
+      onSave(goalData);
+      onClose();
+    } catch (error) {
+      console.error("Error saving goal: ", error);
+      alert("Failed to save goal. Please try again.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingGoal) return;
+
+    try {
+      await deleteDoc(doc(db, "savingsGoals", editingGoal.id));
+      onClose();
+    } catch (error) {
+      console.error("Error deleting goal: ", error);
+      alert("Failed to delete goal. Please try again.");
+    }
   };
 
   if (!isOpen) return null;
@@ -46,14 +82,14 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
           <X className="h-6 w-6" />
           <span className="sr-only">Close</span>
         </button>
-        <h2 className="text-2xl font-bold text-white mb-4 text-center">
+        <h2 className="text-2xl font-bold text-white mb-8 text-center">
           {editingGoal ? "Edit Savings Goal" : "Add New Savings Goal"}
         </h2>
-        <form>
+        <form className="space-y-7">
           <div className="mb-4">
             <input
               type="text"
-              className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
+              className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
               placeholder="Goal Name"
               value={goalName}
               onChange={(e) => setGoalName(e.target.value)}
@@ -62,7 +98,7 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
           <div className="mb-4">
             <input
               type="number"
-              className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
+              className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
               placeholder="Target Amount"
               value={goalTarget}
               onChange={(e) => setGoalTarget(Number(e.target.value))}
@@ -71,10 +107,19 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
           <div className="mb-4">
             <input
               type="number"
-              className="w-full p-2 rounded bg-grisFuerte/50 text-white placeholder-grisClaro focus:outline-none focus:ring-2 focus:ring-rosa"
+              className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
               placeholder="Amount Saved"
               value={goalSaved}
               onChange={(e) => setGoalSaved(Number(e.target.value))}
+            />
+          </div>
+          <div className="mb-4">
+            <input
+              type="date"
+              className="w-full p-2 rounded bg-white/50 text-purpura placeholder-grisClaro focus:shadow-lg focus:shadow-purpura focus:outline-none focus:ring-2 focus:ring-rosa"
+              placeholder="Goal Deadline"
+              value={goalDeadline}
+              onChange={(e) => setGoalDeadline(e.target.value)}
             />
           </div>
 
@@ -85,10 +130,26 @@ const GoalModal = ({ isOpen, onClose, onSave, editingGoal }) => {
           >
             Save
           </button>
+          {editingGoal && (
+            <button
+              type="button"
+              className="w-full px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mt-4"
+              onClick={handleDelete}
+            >
+              Delete Goal
+            </button>
+          )}
         </form>
       </div>
     </div>
   );
+};
+
+GoalModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  editingGoal: PropTypes.object,
 };
 
 export default GoalModal;

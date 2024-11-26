@@ -10,7 +10,6 @@ import {
   LogOutIcon,
   PieChart,
   Plus,
-  Settings,
   Trash2,
   Film,
   ShoppingBag,
@@ -34,6 +33,7 @@ import {
   getDoc,
   deleteDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { db } from "../firebase/firebase.config";
@@ -45,6 +45,8 @@ export default function Dashboard() {
   const [username, setUsername] = useState("");
   const [isSubsModalOpen, setIsSubsModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingSubscription, setDeletingSubscription] = useState(null);
   const [editingSubscription, setEditingSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [editingGoal, setEditingGoal] = useState(null);
@@ -63,7 +65,6 @@ export default function Dashboard() {
   const spendingOverviewRef = useRef(null);
   const savingsGoalsRef = useRef(null);
   const alertsRef = useRef(null);
-  const settingsRef = useRef(null);
   const mainContentRef = useRef(null);
 
   const categories = [
@@ -80,25 +81,60 @@ export default function Dashboard() {
     "Other",
   ];
 
-  const handleAddGoal = (goal) => {
-    if (editingGoal) {
-      setSavingsGoals((prevGoals) =>
-        prevGoals.map((g) => (g.id === editingGoal.id ? goal : g))
+  const handleAddGoal = async (goal) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("No authenticated user");
+
+      const newGoal = {
+        ...goal,
+        userId: user.uid,
+        createdAt: new Date(),
+      };
+
+      const querySnapshot = await getDoc(
+        query(
+          collection(db, "savingsGoals"),
+          where("userId", "==", user.uid),
+          where("name", "==", goal.name)
+        )
       );
-      setEditingGoal(null);
-    } else {
-      setSavingsGoals([...savingsGoals, { ...goal, id: Date.now() }]);
+
+      if (!querySnapshot.empty) {
+        alert("Goal with the same name already exists!");
+        return;
+      }
+
+      await addDoc(collection(db, "savingsGoals"), newGoal);
+      setIsGoalModalOpen(false);
+    } catch (error) {
+      console.error("Error adding goal: ", error);
     }
-    setIsGoalModalOpen(false);
   };
 
-  const handleEditGoal = (goal) => {
-    setEditingGoal(goal);
-    setIsGoalModalOpen(true);
+  const handleEditGoal = async (goal) => {
+    try {
+      const goalRef = doc(db, "savingsGoals", goal.id);
+      await updateDoc(goalRef, goal);
+      setSavingsGoals((prevGoals) =>
+        prevGoals.map((g) => (g.id === goal.id ? goal : g))
+      );
+      setIsGoalModalOpen(false);
+      setEditingGoal(null);
+    } catch (error) {
+      console.error("Error updating goal: ", error);
+    }
   };
 
-  const handleDeleteGoal = (id) => {
-    setSavingsGoals(savingsGoals.filter((goal) => goal.id !== id));
+  const handleDeleteGoal = async (goalId) => {
+    try {
+      await deleteDoc(doc(db, "savingsGoals", goalId));
+      setSavingsGoals((prevGoals) =>
+        prevGoals.filter((goal) => goal.id !== goalId)
+      );
+    } catch (error) {
+      console.error("Error deleting goal: ", error);
+    }
   };
 
   const openGoalModal = () => {
@@ -112,7 +148,6 @@ export default function Dashboard() {
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      console.log("User is signed in:", user);
       try {
         const docRef = doc(db, "collection", "documentId");
         const docSnap = await getDoc(docRef);
@@ -128,25 +163,44 @@ export default function Dashboard() {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        console.log("User is signed in:", user);
-
         const email = user.email;
         const firstName = email.split("@")[0];
         setUsername(firstName.charAt(0).toUpperCase() + firstName.slice(1));
 
-        const q = query(
+        const subscriptionsQuery = query(
           collection(db, "subscriptions"),
           where("userId", "==", user.uid)
         );
-        const unsubscribeSubscriptions = onSnapshot(q, (querySnapshot) => {
-          const subscriptionsData = [];
-          querySnapshot.forEach((doc) => {
-            subscriptionsData.push({ id: doc.id, ...doc.data() });
-          });
-          setSubscriptions(subscriptionsData);
-        });
+        const unsubscribeSubscriptions = onSnapshot(
+          subscriptionsQuery,
+          (querySnapshot) => {
+            const subscriptionsData = [];
+            querySnapshot.forEach((doc) => {
+              subscriptionsData.push({ id: doc.id, ...doc.data() });
+            });
+            setSubscriptions(subscriptionsData);
+          }
+        );
 
-        return () => unsubscribeSubscriptions();
+        const savingsGoalsQuery = query(
+          collection(db, "savingsGoals"),
+          where("userId", "==", user.uid)
+        );
+        const unsubscribeSavingsGoals = onSnapshot(
+          savingsGoalsQuery,
+          (querySnapshot) => {
+            const savingsGoalsData = [];
+            querySnapshot.forEach((doc) => {
+              savingsGoalsData.push({ id: doc.id, ...doc.data() });
+            });
+            setSavingsGoals(savingsGoalsData);
+          }
+        );
+
+        return () => {
+          unsubscribeSubscriptions();
+          unsubscribeSavingsGoals();
+        };
       } else {
         console.log("No user signed in");
         navigate("/");
@@ -180,19 +234,15 @@ export default function Dashboard() {
       const user = auth.currentUser;
       if (!user) throw new Error("No authenticated user");
 
-      const paymentDate = new Date(formData.paymentDate);
-
-      if (isNaN(paymentDate.getTime())) {
-        throw new Error("Invalid paymentDate provided");
-      }
-
-      await addDoc(collection(db, "subscriptions"), {
+      const subscriptionData = {
         ...formData,
-        paymentDate,
         userId: user.uid,
         expenses: 0,
         createdAt: new Date(),
-      });
+        paymentDate: new Date(formData.paymentDate).toISOString(),
+      };
+
+      await addDoc(collection(db, "subscriptions"), subscriptionData);
       setIsSubsModalOpen(false);
     } catch (error) {
       console.error("Error adding subscription: ", error);
@@ -205,7 +255,11 @@ export default function Dashboard() {
         throw new Error("No subscription selected for editing");
 
       const subscriptionRef = doc(db, "subscriptions", editingSubscription.id);
-      await updateDoc(subscriptionRef, formData);
+      await updateDoc(subscriptionRef, {
+        ...formData,
+        paymentDate: new Date(formData.paymentDate).toISOString(),
+      });
+
       setIsSubsModalOpen(false);
       setEditingSubscription(null);
     } catch (error) {
@@ -213,17 +267,64 @@ export default function Dashboard() {
     }
   };
 
+  const openDeleteModal = (subscription) => {
+    setDeletingSubscription(subscription);
+    setIsDeleteModalOpen(true);
+  };
+
+  const openEditGoalModal = (goal) => {
+    setEditingGoal(goal);
+    setIsGoalModalOpen(true);
+  };
+
   const openEditModal = (subscription) => {
     setEditingSubscription(subscription);
     setIsSubsModalOpen(true);
   };
 
-  const handleDeleteSubscription = async (subscriptionId) => {
+  const handleDeleteSubscription = async () => {
     try {
-      await deleteDoc(doc(db, "subscriptions", subscriptionId));
+      if (!deletingSubscription) return;
+
+      await deleteDoc(doc(db, "subscriptions", deletingSubscription.id));
       console.log("Subscription successfully deleted!");
+
+      const subscriptionPrice = parseFloat(deletingSubscription.price || 0);
+      if (isNaN(subscriptionPrice) || subscriptionPrice <= 0) {
+        console.error("Invalid subscription price:", subscriptionPrice);
+        return;
+      }
+
+      let remainingAmount = subscriptionPrice;
+      const updatedGoals = savingsGoals.map((goal) => {
+        if (remainingAmount <= 0) return goal;
+
+        const amountToAdd = Math.min(remainingAmount, goal.target - goal.saved);
+        remainingAmount -= amountToAdd;
+
+        return {
+          ...goal,
+          saved: goal.saved + amountToAdd,
+        };
+      });
+
+      console.log("Updated Goals: ", updatedGoals);
+
+      const batch = writeBatch(db);
+      updatedGoals.forEach((goal) => {
+        const goalRef = doc(db, "savingsGoals", goal.id);
+        batch.update(goalRef, { saved: goal.saved });
+      });
+      await batch.commit();
+
+      console.log("Firebase updated successfully!");
+
+      setSavingsGoals(updatedGoals);
     } catch (error) {
       console.error("Error deleting subscription: ", error);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setDeletingSubscription(null);
     }
   };
 
@@ -252,7 +353,6 @@ export default function Dashboard() {
         case "weekly":
           monthlyAmount = parseFloat(sub.price) * 4;
           break;
-        // Add more cases for other cycles if needed
       }
 
       monthly += monthlyAmount;
@@ -443,14 +543,6 @@ export default function Dashboard() {
               )}
             </div>
           </button>
-
-          <button
-            onClick={() => scrollToSection(settingsRef, "settings")}
-            className={navButtonClass("settings")}
-          >
-            <Settings className="mr-3 h-5 w-5" />
-            Settings
-          </button>
           <button
             onClick={handleLogout}
             className="flex items-center px-6 py-5 text-white hover:bg-vino/20 hover:text-rosa transition-all duration-200 mt-auto"
@@ -472,7 +564,7 @@ export default function Dashboard() {
               onClick={() => setIsSubsModalOpen(true)}
               className="px-4 py-4 bg-rosa text-white text-lg rounded-full hover:bg-vino transition-all duration-200 transform hover:scale-105 flex items-center shadow-lg shadow-black/30"
             >
-              <Plus className="mr-2 h-5 w-5" /> Add Subscription
+              Add Subscription <Plus className="ml-2 h-5 w-5" />
             </button>
           </div>
 
@@ -531,7 +623,11 @@ export default function Dashboard() {
                       <td className="p-2 text-white">${sub.price}</td>
                       <td className="p-2 text-white">{sub.cycle}</td>
                       <td className="p-2 text-white">
-                        {new Date(sub.paymentDate).toLocaleDateString()}
+                        {new Date(sub.paymentDate).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
                       </td>
                       <td className="p-2 flex space-x-8">
                         <button
@@ -542,7 +638,7 @@ export default function Dashboard() {
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteSubscription(sub.id)}
+                          onClick={() => openDeleteModal(sub)}
                           className="text-red-900 hover:text-white transition-colors duration-200"
                           aria-label="Delete subscription"
                         >
@@ -566,7 +662,7 @@ export default function Dashboard() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="bg-vino rounded-2xl p-4 ">
+                <div className="bg-vino/70 rounded-2xl p-4 ">
                   <h4 className="text-lg font-semibold mb-2 border-b-2 border-rosa">
                     Monthly Expenses
                   </h4>
@@ -580,7 +676,7 @@ export default function Dashboard() {
                     ${annualTotal.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-vino rounded-2xl p-4  mt-4">
+                <div className="bg-vino/70 rounded-2xl p-4  mt-4">
                   <h4 className="text-lg font-semibold mb-2">
                     Category Breakdown
                   </h4>
@@ -589,7 +685,7 @@ export default function Dashboard() {
                       ([category, amount]) => (
                         <div
                           key={category}
-                          className="rounded-2xl p-4 hover:bg-rosa/50"
+                          className="rounded-2xl p-4 hover:bg-rosa/50 overflow-hidden"
                           style={{
                             borderColor: getCategoryColor(category),
                             borderWidth: "2px",
@@ -597,8 +693,10 @@ export default function Dashboard() {
                             borderStyle: "solid",
                           }}
                         >
-                          <h5 className="font-medium">{category}</h5>
-                          <p className="text-lg font-semibold">
+                          <h5 className="font-medium text-ellipsis overflow-hidden whitespace-nowrap">
+                            {category}
+                          </h5>
+                          <p className="text-lg font-semibold truncate">
                             ${amount.toFixed(2)}/mo
                           </p>
                         </div>
@@ -607,7 +705,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="bg-vino rounded-2xl p-4 ">
+              <div className="bg-vino/70 rounded-2xl p-4 ">
                 <h4 className="text-lg font-semibold mb-2">
                   Expense Distribution
                 </h4>
@@ -621,15 +719,15 @@ export default function Dashboard() {
             ref={savingsGoalsRef}
             className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
-            <h3 className="text-xl font-bold text-rosa mb-4">Savings Goals</h3>
-            <p className="text-sm text-grisClaro mb-4">
-              Define tus metas de ahorro y haz un seguimiento de tu progreso.
-            </p>
+            <h3 className="text-xl font-bold text-white/50 mb-4">
+              Saving Goals
+            </h3>
             <button
-              className="bg-rosa text-white py-2 px-4 rounded-lg hover:bg-rosa/80 transition mb-4"
+              className="flex items-center justify-between px-4 w-44 py-2 mb-5 bg-rosa text-white rounded-full shadow-lg shadow-black/30 hover:bg-vino transition-all duration-200 transform hover:scale-105 appearance-none focus:outline-none focus:ring-2 focus:ring-vino"
               onClick={openGoalModal}
             >
-              + Add Goal
+              Add Goal
+              <Plus className=" h-5 w-5" />
             </button>
 
             {savingsGoals.length === 0 ? (
@@ -639,18 +737,18 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-4">
                 {savingsGoals.map((goal) => (
-                  <div key={goal.id}>
+                  <div key={goal.id} className="bg-vino/70 p-4 rounded-lg">
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium text-white">
                         {goal.name}
                       </span>
                       <span className="text-sm font-medium text-white">
-                        {Math.round((goal.saved / goal.target) * 100)}%
+                        ${goal.saved.toFixed(2)} / ${goal.target.toFixed(2)}
                       </span>
                     </div>
-                    <div className="w-full bg-grisFuerte/50 rounded-full h-2.5">
+                    <div className="w-full bg-grisFuerte/50 rounded-full h-2.5 mb-2">
                       <div
-                        className="bg-gradient-to-r from-rosa to-vino h-2.5 rounded-full"
+                        className="bg-gradient-to-r from-red-500 to-rosa h-2.5 rounded-full"
                         style={{
                           width: `${Math.min(
                             (goal.saved / goal.target) * 100,
@@ -659,19 +757,24 @@ export default function Dashboard() {
                         }}
                       ></div>
                     </div>
-                    <div className="flex justify-end space-x-2 mt-2">
-                      <button
-                        className="text-sm text-rosa hover:underline"
-                        onClick={() => handleEditGoal(goal)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-sm text-rosa hover:underline"
-                        onClick={() => handleDeleteGoal(goal.id)}
-                      >
-                        Delete
-                      </button>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white">
+                        Deadline: {new Date(goal.deadline).toLocaleDateString()}
+                      </span>
+                      <div className="flex space-x-2">
+                        <button
+                          className="text-sm text-rosa hover:underline"
+                          onClick={() => openEditGoalModal(goal)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-sm text-rosa hover:underline"
+                          onClick={() => handleDeleteGoal(goal.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -684,14 +787,14 @@ export default function Dashboard() {
             ref={alertsRef}
             className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
           >
-            <h3 className="text-xl font-bold text-rosa mb-4">
+            <h3 className="text-xl font-bold text-white/50 mb-4">
               Alerts and Reminders
             </h3>
             <div className="space-y-4">
               {alerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className="flex items-center justify-between bg-vino/50 p-4 rounded-lg"
+                  className="flex items-center justify-between bg-vino/70 p-4 rounded-lg"
                 >
                   <div className="flex items-center">
                     <Bell className="h-5 w-5 mr-2 text-rosa" />
@@ -711,31 +814,32 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+        </div>
+      </main>
 
-          {/* Settings */}
-          <div
-            ref={settingsRef}
-            className="bg-purpura/50 backdrop-blur-md p-6 rounded-lg shadow-lg shadow-black/50 mb-8"
-          >
-            <h3 className="text-xl font-bold text-rosa mb-4">Settings</h3>
-            {/* Add your settings content here */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-white">Account Settings</span>
-                <button className="px-4 py-2 bg-vino/50 text-rosa rounded-md hover:bg-vino transition-all duration-200 transform hover:scale-105">
-                  Edit
-                </button>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-white">Notifications</span>
-                <button className="px-4 py-2 bg-vino/50 text-rosa rounded-md hover:bg-vino transition-all duration-200 transform hover:scale-105">
-                  Configure
-                </button>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="bg-rosa/70 backdrop-blur-md p-6 rounded-2xl shadow-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+            <p>Are you sure you want to delete this subscription?</p>
+            <div className="mt-6 flex justify-center space-x-4">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSubscription}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
-      </main>
+      )}
 
       {/* Add Subscription Modal */}
       <SubsModal
@@ -753,8 +857,8 @@ export default function Dashboard() {
       <GoalModal
         isOpen={isGoalModalOpen}
         onClose={closeGoalModal}
-        onSubmit={editingGoal ? handleEditGoal : handleAddGoal}
-        initialData={editingGoal}
+        onSave={editingGoal ? handleEditGoal : handleAddGoal}
+        editingGoal={editingGoal}
       />
     </div>
   );
