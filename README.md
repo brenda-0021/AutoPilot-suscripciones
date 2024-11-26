@@ -81,7 +81,7 @@ El servidor de desarrollo estará disponible en http://localhost:5173 (o en el p
 ## Producción
 
 La aplicación está desplegada y disponible en Netlify. Puedes acceder a ella en el siguiente enlace:
-🌐 [AutoPilot Suscripciones en Netlify](https://6744d845330f672191cb995c--autopilotsubs.netlify.app/)
+🌐 [AutoPilot Suscripciones en Netlify](https://6745758e5958cfe1e95a356a--autopilotsubs.netlify.app/)
 
 ## Autor
 
